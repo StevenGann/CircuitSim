@@ -78,8 +78,10 @@ namespace CircuitSim
                 circuit.Stimulate(2, (RNG.Next(100) > 50 ? 0 : 5));
                 circuit.Iterate((int)subcycles);
                 //Console.Write(circuit.Probe(8) + " ");
+                if (i % 10000 == 0) { Console.Write('|'); }
             }
             watch.Stop();
+            Console.Write('\n');
             double elapsedMs = watch.ElapsedMilliseconds;
             Console.WriteLine($"{elapsedMs / (cycles * subcycles)}ms per cycle");
             Console.WriteLine($"{(int)Math.Round((cycles * subcycles) / (elapsedMs / 1000.0))} cycles per second");
