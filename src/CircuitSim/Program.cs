@@ -70,20 +70,22 @@ namespace CircuitSim
             var watch = System.Diagnostics.Stopwatch.StartNew();
 
             double cycles = 1000000;
+            double subcycles = 1000;
             for (int i = 0; i < cycles; i++)
             {
                 circuit.Stimulate(0, (RNG.Next(100) > 50 ? 0 : 5));
                 circuit.Stimulate(1, (RNG.Next(100) > 50 ? 0 : 5));
                 circuit.Stimulate(2, (RNG.Next(100) > 50 ? 0 : 5));
-                circuit.Iterate(0);
+                circuit.Iterate((int)subcycles);
                 //Console.Write(circuit.Probe(8) + " ");
             }
             watch.Stop();
             double elapsedMs = watch.ElapsedMilliseconds;
-            Console.WriteLine($"{elapsedMs / cycles}ms per cycle");
-            Console.WriteLine($"{(int)Math.Round(cycles / (elapsedMs / 1000.0))} cycles per second");
+            Console.WriteLine($"{elapsedMs / (cycles * subcycles)}ms per cycle");
+            Console.WriteLine($"{(int)Math.Round((cycles * subcycles) / (elapsedMs / 1000.0))} cycles per second");
 
             Console.Write(circuit.Probe(8) + "\n");
+            Console.ReadLine();
         }
     }
 
