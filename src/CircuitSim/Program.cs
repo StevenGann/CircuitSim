@@ -7,7 +7,7 @@ namespace CircuitSim
     {
         private static void Main(string[] args)
         {
-            Console.WriteLine(CSDL.FilterComments(@"
+            string code = @"
 // Comment
 /* comment */
 /*
@@ -41,7 +41,10 @@ module NAND(input A, input B, output C)
 {
     C = ~(A & B);
 }
-"));
+";
+            code = CSDL.FilterComments(code);
+            Console.WriteLine(code);
+            CSDL.IdentifyModules(code);
 
             /*
             Console.WriteLine("Constructing circuit");
