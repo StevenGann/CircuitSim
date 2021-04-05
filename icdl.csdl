@@ -1,0 +1,33 @@
+// Comment
+/* comment */
+/*
+Constructs:
+  Wires: one or more circuit nodes in a group
+  Inputs: Wires that are strictly an input
+  Outputs: Wires that are strictly an output
+  Gates: Connections between wires
+
+Compilation Process:
+1. Enumate modules
+2. Construct module dependency graph
+3. Enumate nodes (inputs, outputs, and wires)
+4. Enumerate gates
+5. Construct circuit object
+*/
+
+module top(input A, input B, output C, output D)
+{
+    wire E;
+    wire [2:0] F;
+
+    E = ~A;
+    F[1:0] = A & B; //F has 2 lines, access 1 at position 0
+    F[1:1] = ~F[1:0];// access 1 at position 1
+    C = NAND(A=E, B=F[1:0]).C; // referencing a module
+    D = F[1:0] | F[1:1];
+}
+
+module NAND(input A, input B, output C)
+{
+    C = ~(A & B);
+}
