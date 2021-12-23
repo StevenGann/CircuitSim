@@ -8,98 +8,191 @@ namespace CircuitSim
 {
     internal static class CSDL
     {
-        public static ModuleStructure[] IdentifyModules(string Code)
+        public static string[] Keywords = { "module", "input", "output", "wire" };
+        public static char[] SpecialCharacters = { '(', ')', '{', '}', '[', ']', ':', ';', '=', '-', '+', '\\', '/', '-', '~', '!', '^', '&', '|', '*', '$', '@', '#', '%', '<', '>', '?', '"', '\'', '`', ',', '.', };
+        public static char[] WhitespaceCharacters = { ' ', '\n', '\r', '\t' };
+
+        public static void Parse(string Code)
         {
-            string[] lines = Code.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            int moduleIndex = -1;
-            List<string> moduleLines = new List<string>();
-            Stack<int> scope = new Stack<int>();
-            int moduleDepth = 0; ;
-            List<ModuleStructure> modules = new List<ModuleStructure>();
-
-            for (int i = 0; i < lines.Length; i++)
+            stateStack.Clear();
+            stateStack.Push(ParserStates.Root);
+            string code = Scrub(Code);
+            while (code.Length > 0)
             {
-                string line = lines[i];
+                string next = NextSymbol(code);
+                code = code.Trim().Remove(0, next.Length);
+                symbols.Enqueue(next);
+            }
 
-                if (line.Contains("module"))
+            while (symbols.Count > 0)
+            {
+                ParseSymbol(symbols.Dequeue());
+            }
+        }
+
+        private static Queue<string> symbols = new Queue<string>();
+        private static Stack<ParserStates> stateStack = new Stack<ParserStates>();
+        private static List<string> Modules = new List<string>();
+        private static List<string> Wires = new List<string>();
+
+        private static void ParseSymbol(string Symbol)
+        {
+            Console.Write(Symbol + "\t");
+            ParserStates state = stateStack.Peek();
+
+            if (state == ParserStates.Root) //Root of the document
+            {
+                if (Symbol == "module")
                 {
-                    moduleIndex = i;
-                    moduleDepth = scope.Count;
+                    Console.Write("Defining module");
+                    stateStack.Push(ParserStates.Module);
+                    stateStack.Push(ParserStates.ModuleSignature);
                 }
-
-                if (line.Contains('{')) { scope.Push(i); }
-
-                if (moduleIndex >= 0)
+                else
                 {
-                    moduleLines.Add(line);
+                    Console.WriteLine("Error: only modules can be defined on the document root");
                 }
-
-                if (line.Contains('}') && lines[scope.Peek()].Contains('{'))
+            }
+            else if (state == ParserStates.Module)
+            {
+                if (Symbol == "wire")
                 {
-                    scope.Pop();
+                    stateStack.Push(ParserStates.WireDeclaration);
+                }
+                else if (Symbol == "}")
+                {
+                    Console.Write("End Module");
+                    stateStack.Pop();
+                }
+                else
+                {
+                    Console.Write($"Assigning to {Symbol}");
+                    stateStack.Push(ParserStates.Assignment);
+                }
+            }
+            else if (state == ParserStates.Assignment)
+            {
+                if (Symbol == ";")
+                {
+                    stateStack.Pop();
+                }
+                else if (Symbol == "[")
+                {
+                    stateStack.Push(ParserStates.BusAssignment);
+                }
+            }
+            else if (state == ParserStates.BusAssignment)
+            {
+                if (Symbol == "]")
+                {
+                    stateStack.Pop();
+                }
+            }
+            else if (state == ParserStates.ModuleSignature)
+            {
+                if (Symbol == "input")
+                {
+                    stateStack.Push(ParserStates.InputDeclaration);
+                }
+                else if (Symbol == "output")
+                {
+                    stateStack.Push(ParserStates.OutputDeclaration);
+                }
+                else if (Symbol == "{")
+                {
+                    stateStack.Pop();
+                }
+                else if (Symbol == ")")
+                {
+                    stateStack.Pop();
+                }
+                else if (Symbol == "(")
+                {
+                }
+                else
+                {
+                    Modules.Add(Symbol);
+                    Console.Write($"Module named {Symbol}");
+                }
+            }
+            else if (state == ParserStates.InputDeclaration
+                || state == ParserStates.OutputDeclaration
+                || state == ParserStates.WireDeclaration)
+            {
+                /*if (Symbol == ";" || Symbol == "," || Symbol == ")")
+                {
+                    stateStack.Pop();
+                }
+                else
+                {
+                    Wires.Add(Symbol);
+                    Console.Write($"Wire named {Symbol}");
+                }*/
 
-                    if (scope.Count == moduleDepth)
-                    {
-                        moduleIndex = -1;
-                        ModuleStructure module = new ModuleStructure();
-                        module.Code = Join(moduleLines.ToArray());
-                        modules.Add(module);
-                        moduleLines.Clear();
-                    }
+                if (Symbol == "[")
+                {
+                    stateStack.Push(ParserStates.BusDeclaration);
+                }
+                else
+                {
+                    Wires.Add(Symbol);
+                    Console.Write($"Wire named {Symbol}");
+                    stateStack.Pop();
+                }
+            }
+            else if (state == ParserStates.BusDeclaration)
+            {
+                if (Symbol == "]")
+                {
+                    stateStack.Pop();
                 }
             }
 
-            return modules.ToArray();
+            Console.CursorLeft = 32;
+            Console.Write(stateStack.Peek().ToString());
+
+            Console.WriteLine();
         }
 
-        public static WireStructure[] IdentifyWires(string Code)
+        private enum ParserStates
         {
-            string[] lines = Code.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            bool inSignature = false;
-            bool inBody = false;
-            for (int i = 0; i < lines.Length; i++)
+            Root,
+            Module,
+            ModuleSignature,
+            InputDeclaration,
+            OutputDeclaration,
+            WireDeclaration,
+            BusDeclaration,
+            Assignment,
+            BusAssignment,
+            ModuleReference,
+            ModuleInput,
+            ModuleOutput
+        }
+
+        private static string NextSymbol(string Code)
+        {
+            char[] chars = Code.Trim().ToCharArray();
+            int index = 0;
+
+            while (WhitespaceCharacters.Contains(chars[index])) { index++; }
+
+            if (SpecialCharacters.Contains(chars[index]))
             {
-                string line = lines[i];
-
-                if (line.Contains('(') && !inBody)
-                {
-                    inSignature = true;
-                }
-
-                if (inSignature)
-                {
-                    while (line.IndexOf("input") != -1)
-                    {
-                    }
-                }
-
-                if (line.Contains(')') && !inBody)
-                {
-                    inSignature = false;
-                }
-
-                if (line.Contains('{'))
-                {
-                    inSignature = false;
-                    inBody = true;
-                }
-
-                if (inBody)
-                {
-                }
-
-                if (line.Contains('}'))
-                {
-                    inBody = false;
-                }
+                return chars[0].ToString();
             }
 
-            return null;
+            string result = "";
+            while (!SpecialCharacters.Contains(chars[index]) && !WhitespaceCharacters.Contains(chars[index]))
+            {
+                result += chars[index];
+                index++;
+            }
+
+            return result;
         }
 
-        private static Tuple<string, string>
-
-        public static string FilterComments(string Code)
+        public static string Scrub(string Code)
         {
             string[] lines = Code.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             bool inBlockComment = false;
@@ -137,51 +230,18 @@ namespace CircuitSim
                 lines[i] = line;
             }
 
-            return Join(lines);
-        }
-
-        public static string Join(string[] Lines)
-        {
-            string result = "";
-            for (int i = 0; i < Lines.Length; i++)
+            string result = string.Join(' ', lines);
+            result = result.Replace("\r", " ");
+            result = result.Replace("\t", " ");
+            int length;
+            do
             {
-                if (!string.IsNullOrWhiteSpace(Lines[i]))
-                {
-                    result += Lines[i] + '\n';
-                }
+                length = result.Length;
+                result = result.Replace("  ", " ");
             }
+            while (length != result.Length);
 
-            return result.Replace("\r", "").Trim();
-        }
-
-        public struct ModuleStructure
-        {
-            public string Code;
-            public string Body;
-            public string Name;
-            public WireStructure[] Wires;
-
-            public override string ToString()
-            {
-                return Name;
-            }
-
-            public static void UpdateFromCode(ref ModuleStructure Module)
-            {
-            }
-        }
-
-        public struct WireStructure
-        {
-            public string Name;
-            public WireType Type;
-        }
-
-        private enum WireType
-        {
-            Neutral,
-            Input,
-            Output
+            return result;
         }
     }
 }

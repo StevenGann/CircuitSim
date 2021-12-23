@@ -25,10 +25,15 @@ Compilation Process:
 5. Construct circuit object
 */
 
+module NAND(input A, input B, output C)
+{
+    C = ~(A & B);
+}
+
 module top(input A, input B, output C, output D)
 {
     wire E;
-    wire [2:0] F;
+    wire [2] F; // Two line bus
 
     E = ~A;
     F[1:0] = A & B; //F has 2 lines, access 1 at position 0
@@ -36,15 +41,10 @@ module top(input A, input B, output C, output D)
     C = NAND(A=E, B=F[1:0]).C; // referencing a module
     D = F[1:0] | F[1:1];
 }
-
-module NAND(input A, input B, output C)
-{
-    C = ~(A & B);
-}
 ";
-            code = CSDL.FilterComments(code);
+            code = CSDL.Scrub(code);
             Console.WriteLine(code);
-            CSDL.IdentifyModules(code);
+            CSDL.Parse(code);
 
             /*
             Console.WriteLine("Constructing circuit");
